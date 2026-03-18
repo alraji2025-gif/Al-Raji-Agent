@@ -1,16 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { db, collection, getDocs, orderBy, query, setDoc, doc, Timestamp, getDoc, auth, signInWithPopup, googleProvider, handleFirestoreError, OperationType } from '../firebase';
-import { Users, Settings, LogOut, Save as SaveIcon, ShieldCheck, Loader2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { db, collection, getDocs, orderBy, query, setDoc, doc, Timestamp, getDoc, auth, signInWithPopup, googleProvider, handleFirestoreError, OperationType, deleteDoc } from '../firebase';
+import { Users, Settings, LogOut, Save as SaveIcon, ShieldCheck, Loader2, Trash2, Download, BarChart3, MessageSquare, Clock, Phone, GraduationCap } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { DEFAULT_SYSTEM_INSTRUCTION } from '../services/gemini';
 
 export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
-  const [activeTab, setActiveTab] = useState<'leads' | 'settings'>('leads');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'leads' | 'settings'>('dashboard');
   const [leads, setLeads] = useState<any[]>([]);
   const [systemInstruction, setSystemInstruction] = useState(DEFAULT_SYSTEM_INSTRUCTION);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingLeads, setIsLoadingLeads] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (auth.currentUser) {
@@ -59,6 +62,74 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const deleteLead = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this lead?')) return;
+    setIsDeleting(id);
+    try {
+      await deleteDoc(doc(db, 'leads', id));
+      setLeads(prev => prev.filter(lead => lead.id !== id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `leads/${id}`);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const updateLeadStatus = async (id: string, status: string) => {
+    setIsUpdatingStatus(id);
+    try {
+      await setDoc(doc(db, 'leads', id), { status }, { merge: true });
+      setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `leads/${id}`);
+    } finally {
+      setIsUpdatingStatus(null);
+    }
+  };
+
+  const deleteAllLeads = async () => {
+    if (!window.confirm('CRITICAL: Are you sure you want to delete ALL leads? This cannot be undone.')) return;
+    if (!window.confirm('FINAL CONFIRMATION: Delete everything?')) return;
+    
+    setIsLoadingLeads(true);
+    try {
+      const batch = leads.map(l => deleteDoc(doc(db, 'leads', l.id)));
+      await Promise.all(batch);
+      setLeads([]);
+      alert('All leads deleted.');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, 'leads/all');
+    } finally {
+      setIsLoadingLeads(false);
+    }
+  };
+
+  const filteredLeads = leads.filter(l => 
+    l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    l.phone.includes(searchQuery) ||
+    (l.course && l.course.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+  const exportLeads = () => {
+    const headers = ['Name', 'Phone', 'Course', 'Date', 'Status'];
+    const csvData = leads.map(l => [
+      l.name,
+      l.phone,
+      l.course || 'N/A',
+      l.timestamp?.toDate().toLocaleString() || 'N/A',
+      l.status || 'new'
+    ]);
+    
+    const csvContent = [headers, ...csvData].map(e => e.join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `alraji_leads_${new Date().toLocaleDateString()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -106,11 +177,18 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
 
       <div className="flex border-b border-slate-200 bg-white">
         <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex-1 py-4 flex items-center justify-center gap-2 font-bold transition-all ${activeTab === 'dashboard' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
+        >
+          <BarChart3 size={20} />
+          Dashboard
+        </button>
+        <button
           onClick={() => setActiveTab('leads')}
           className={`flex-1 py-4 flex items-center justify-center gap-2 font-bold transition-all ${activeTab === 'leads' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
         >
           <Users size={20} />
-          Student Leads ({leads.length})
+          Leads ({leads.length})
         </button>
         <button
           onClick={() => setActiveTab('settings')}
@@ -122,52 +200,237 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        {activeTab === 'leads' ? (
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="bg-indigo-100 p-3 rounded-xl text-indigo-600">
+                    <Users size={24} />
+                  </div>
+                  <h3 className="font-bold text-slate-500 uppercase text-xs tracking-wider">Total Leads</h3>
+                </div>
+                <p className="text-4xl font-black text-slate-900">{leads.length}</p>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600">
+                    <Clock size={24} />
+                  </div>
+                  <h3 className="font-bold text-slate-500 uppercase text-xs tracking-wider">Last 24 Hours</h3>
+                </div>
+                <p className="text-4xl font-black text-slate-900">
+                  {leads.filter(l => l.timestamp?.toDate() > new Date(Date.now() - 24 * 60 * 60 * 1000)).length}
+                </p>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="bg-orange-100 p-3 rounded-xl text-orange-600">
+                    <GraduationCap size={24} />
+                  </div>
+                  <h3 className="font-bold text-slate-500 uppercase text-xs tracking-wider">Top Course</h3>
+                </div>
+                <p className="text-xl font-black text-slate-900 truncate">
+                  {Object.entries(leads.reduce((acc: any, l) => {
+                    const c = l.course || 'General';
+                    acc[c] = (acc[c] || 0) + 1;
+                    return acc;
+                  }, {})).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || 'N/A'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                    <Clock size={18} className="text-indigo-500" />
+                    Recent Activity
+                  </h3>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {leads.slice(0, 5).map(lead => (
+                    <div key={lead.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
+                          {lead.name[0]}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-slate-900">{lead.name}</p>
+                          <p className="text-xs text-slate-500">{lead.course || 'General Inquiry'}</p>
+                        </div>
+                      </div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase">
+                        {lead.timestamp?.toDate().toLocaleDateString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-4 border-b border-slate-100 flex justify-between items-center">
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                    <GraduationCap size={18} className="text-orange-500" />
+                    Course Popularity
+                  </h3>
+                </div>
+                <div className="p-6 space-y-4">
+                  {Object.entries(leads.reduce((acc: any, l) => {
+                    const c = l.course || 'General';
+                    acc[c] = (acc[c] || 0) + 1;
+                    return acc;
+                  }, {})).sort((a: any, b: any) => b[1] - a[1]).slice(0, 5).map(([course, count]: any) => (
+                    <div key={course} className="space-y-1">
+                      <div className="flex justify-between text-xs font-bold text-slate-600">
+                        <span>{course}</span>
+                        <span>{count}</span>
+                      </div>
+                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(count / leads.length) * 100}%` }}
+                          className="h-full bg-indigo-500 rounded-full"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-indigo-900 rounded-2xl p-6 text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row justify-between items-center gap-6">
+              <div>
+                <h3 className="text-xl font-bold mb-1">Admin Quick Actions</h3>
+                <p className="text-indigo-300 text-sm">Manage your institute data efficiently</p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={exportLeads} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                  <Download size={16} />
+                  Export All
+                </button>
+                <button onClick={() => setActiveTab('settings')} className="bg-indigo-500 hover:bg-indigo-400 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                  <Settings size={16} />
+                  Train Bot
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'leads' && (
           <div className="space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
+              <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest">Manage Student Leads</h3>
+              <div className="flex items-center gap-2 w-full md:w-auto">
+                <input 
+                  type="text" 
+                  placeholder="Search leads..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none flex-1 md:w-64"
+                />
+                <button 
+                  onClick={exportLeads}
+                  className="flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg transition-all"
+                >
+                  <Download size={14} />
+                  Export
+                </button>
+                <button 
+                  onClick={deleteAllLeads}
+                  className="flex items-center gap-2 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded-lg transition-all"
+                >
+                  <Trash2 size={14} />
+                  Clear All
+                </button>
+              </div>
+            </div>
+            
             {isLoadingLeads ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                 <Loader2 className="animate-spin mb-4" size={32} />
                 <p>Loading leads...</p>
               </div>
-            ) : leads.length === 0 ? (
-              <div className="text-center py-20 text-slate-400">
-                <Users size={48} className="mx-auto mb-4 opacity-20" />
-                <p>No leads collected yet.</p>
+            ) : filteredLeads.length === 0 ? (
+              <div className="text-center py-20 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
+                <Users size={48} className="mx-auto mb-4 opacity-10" />
+                <p>No leads found matching your search.</p>
               </div>
             ) : (
               <div className="grid gap-4">
-                {leads.map(lead => (
+                {filteredLeads.map(lead => (
                   <motion.div
                     key={lead.id}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex justify-between items-center"
+                    className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group"
                   >
-                    <div>
-                      <h4 className="font-bold text-slate-900">{lead.name}</h4>
-                      <p className="text-indigo-600 font-medium">{lead.phone}</p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {lead.timestamp?.toDate().toLocaleString() || 'N/A'}
-                      </p>
+                    <div className="flex gap-4 items-center">
+                      <div className="bg-indigo-50 p-3 rounded-xl text-indigo-600">
+                        <Phone size={20} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-900">{lead.name}</h4>
+                        <div className="flex items-center gap-3 mt-1">
+                          <p className="text-indigo-600 font-medium text-sm">{lead.phone}</p>
+                          <span className="text-slate-300">|</span>
+                          <p className="text-xs text-slate-500 font-medium">{lead.course || 'General'}</p>
+                        </div>
+                        <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                          <Clock size={10} />
+                          {lead.timestamp?.toDate().toLocaleString() || 'N/A'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold uppercase">
-                      New Lead
+                    
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+                      <select 
+                        value={lead.status || 'new'}
+                        onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
+                        disabled={isUpdatingStatus === lead.id}
+                        className={`text-[10px] font-bold uppercase px-2 py-1 rounded-lg border-none outline-none cursor-pointer transition-all ${
+                          lead.status === 'enrolled' ? 'bg-emerald-100 text-emerald-700' :
+                          lead.status === 'contacted' ? 'bg-blue-100 text-blue-700' :
+                          'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        <option value="new">New</option>
+                        <option value="contacted">Contacted</option>
+                        <option value="enrolled">Enrolled</option>
+                      </select>
+
+                      <button 
+                        onClick={() => deleteLead(lead.id)}
+                        disabled={isDeleting === lead.id}
+                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all md:opacity-0 md:group-hover:opacity-100"
+                      >
+                        {isDeleting === lead.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                      </button>
                     </div>
                   </motion.div>
                 ))}
               </div>
             )}
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'settings' && (
           <div className="flex flex-col h-full gap-4">
             <div className="flex-1">
-              <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">
-                System Instruction (Bot Knowledge)
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="text-sm font-bold text-slate-700 uppercase tracking-wide flex items-center gap-2">
+                  <MessageSquare size={16} className="text-indigo-500" />
+                  System Instruction (Bot Knowledge)
+                </label>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">
+                  v2.0 Active
+                </span>
+              </div>
               <textarea
                 value={systemInstruction}
                 onChange={(e) => setSystemInstruction(e.target.value)}
-                className="w-full h-[400px] p-4 bg-white border border-slate-300 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                className="w-full h-[400px] p-4 bg-white border border-slate-300 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none shadow-inner"
                 placeholder="Enter instructions for Nusrat..."
               />
             </div>
@@ -177,7 +440,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
               className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 transition-all"
             >
               {isSaving ? <Loader2 className="animate-spin" /> : <SaveIcon size={20} />}
-              Save Bot Configuration
+              Update Bot Intelligence
             </button>
           </div>
         )}
