@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: leads
+    // Fields:
+    //   - name: string (required, 2-100 chars)
+    //   - phone: string (required, 10-20 chars)
+    //   - course: string (optional)
+    //   - timestamp: timestamp (required)
+    //
+    // Collection: settings
+    // Fields:
+    //   - systemInstruction: string (required)
+    //   - lastUpdated: timestamp (required)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "alraji2025@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidLead(data) {
+      return data.keys().hasAll(['name', 'phone', 'timestamp']) &&
+             data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+             data.phone is string && data.phone.size() >= 10 && data.phone.size() <= 20 &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['systemInstruction', 'lastUpdated']) &&
+             data.systemInstruction is string &&
+             data.lastUpdated is timestamp;
+    }
+
+    // Rules
+    match /leads/{leadId} {
+      allow read: if isAdmin();
+      allow create: if isValidLead(request.resource.data);
+      allow update, delete: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if true; // Bot needs to read settings
+      allow write: if isAdmin();
+    }
+  }
+}

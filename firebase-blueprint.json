@@ -1,0 +1,35 @@
+{
+  "entities": {
+    "Lead": {
+      "title": "Lead",
+      "description": "Student lead information collected by the bot.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "course": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Bot configuration and system instructions.",
+      "type": "object",
+      "properties": {
+        "systemInstruction": { "type": "string" },
+        "lastUpdated": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "leads": {
+      "schema": "Lead",
+      "description": "Collection of student leads."
+    },
+    "settings": {
+      "schema": "Settings",
+      "description": "Bot configuration settings."
+    }
+  }
+}
