@@ -31,8 +31,8 @@ export default function App() {
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
       if (u) {
-        // Auto-login to admin panel if user matches admin criteria
-        if (u.email === 'alraji2025@gmail.com' || u.email === 'admin@alraji.com') {
+        // Auto-login to admin panel if user matches admin criteria or is anonymous (from hardcoded login)
+        if (u.email === 'alraji2025@gmail.com' || u.email === 'admin@alraji.com' || u.isAnonymous) {
           setIsAdminLoggedIn(true);
         }
       } else {
@@ -58,8 +58,8 @@ export default function App() {
     try {
       // 1. Check hardcoded credentials first
       if (adminUsername.toLowerCase() === 'admin' && adminPassword === 'alraji2025') {
-        // We still let them into the UI for local testing, 
-        // but Firestore rules will block them if not authenticated correctly.
+        // Sign in anonymously so we have a valid Firebase UID for Firestore rules
+        await signInAnonymously(auth);
         setIsAdminLoggedIn(true);
         setAdminUsername('');
         setAdminPassword('');

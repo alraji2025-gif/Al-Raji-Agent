@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db, collection, getDocs, orderBy, query, setDoc, doc, Timestamp, getDoc, auth, signInWithPopup, googleProvider, handleFirestoreError, OperationType, deleteDoc, onAuthStateChanged } from '../firebase';
+import { db, collection, getDocs, orderBy, query, setDoc, doc, Timestamp, getDoc, auth, signInWithPopup, googleProvider, handleFirestoreError, OperationType, deleteDoc, onAuthStateChanged, onSnapshot } from '../firebase';
 import { Users, Settings, LogOut, Save as SaveIcon, ShieldCheck, Loader2, Trash2, Download, BarChart3, MessageSquare, Clock, Phone, GraduationCap, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -16,27 +16,26 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (user) => {
+    const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
-        fetchLeads();
         fetchSettings();
+        
+        // Real-time leads listener
+        setIsLoadingLeads(true);
+        const q = query(collection(db, 'leads'), orderBy('timestamp', 'desc'));
+        const unsubLeads = onSnapshot(q, (snapshot) => {
+          setLeads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          setIsLoadingLeads(false);
+        }, (error) => {
+          handleFirestoreError(error, OperationType.LIST, 'leads');
+          setIsLoadingLeads(false);
+        });
+        
+        return () => unsubLeads();
       }
     });
-    return () => unsub();
+    return () => unsubAuth();
   }, []);
-
-  const fetchLeads = async () => {
-    setIsLoadingLeads(true);
-    try {
-      const q = query(collection(db, 'leads'), orderBy('timestamp', 'desc'));
-      const snapshot = await getDocs(q);
-      setLeads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'leads');
-    } finally {
-      setIsLoadingLeads(false);
-    }
-  };
 
   const fetchSettings = async () => {
     try {
@@ -136,7 +135,6 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-      fetchLeads();
       fetchSettings();
     } catch (error) {
       console.error(error);

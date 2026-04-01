@@ -245,9 +245,12 @@ export default function Chat({ systemInstruction, onVoiceClick, onBack }: { syst
                 await addDoc(collection(db, 'leads'), {
                   name,
                   phone,
-                  course: course || 'General Inquiry',
+                  course: course || 'Chat Inquiry',
+                  status: 'new',
                   timestamp: Timestamp.now()
                 });
+                
+                console.log(`Lead saved: ${name} (${phone})`);
                 
                 // Use a pre-defined message instead of an extra API call to avoid delay
                 const followUpText = 'ধন্যবাদ! আপনার তথ্য সংরক্ষিত হয়েছে। আমরা শীঘ্রই আপনার সাথে যোগাযোগ করব।';

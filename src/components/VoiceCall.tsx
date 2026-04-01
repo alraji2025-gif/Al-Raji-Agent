@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, PhoneOff, Loader2, Volume2, VolumeX, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI, Modality, LiveServerMessage } from "@google/genai";
-import { DEFAULT_SYSTEM_INSTRUCTION } from '../services/gemini';
+import { db, collection, addDoc, Timestamp, handleFirestoreError, OperationType } from '../firebase';
+import { DEFAULT_SYSTEM_INSTRUCTION, saveLeadFunctionDeclaration } from '../services/gemini';
 
 export default function VoiceCall({ systemInstruction, onBack }: { systemInstruction: string, onBack?: () => void }) {
   const [isCalling, setIsCalling] = useState(false);
@@ -117,6 +118,37 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
             if (message.serverContent?.modelTurn?.parts[0]?.text) {
               setTranscript(message.serverContent.modelTurn.parts[0].text);
             }
+
+            // Handle Tool Calls
+            const toolCall = message.serverContent?.modelTurn?.parts?.find(p => p.functionCall);
+            if (toolCall?.functionCall) {
+              const { name, args } = toolCall.functionCall;
+              if (name === 'saveLead') {
+                const { name: leadName, phone, course } = args as any;
+                try {
+                  await addDoc(collection(db, 'leads'), {
+                    name: leadName,
+                    phone,
+                    course: course || 'Voice Inquiry',
+                    status: 'new',
+                    timestamp: Timestamp.now()
+                  });
+                  
+                  console.log(`Lead saved: ${leadName} (${phone})`);
+                  
+                  // Send tool response back to model
+                  sessionRef.current?.sendToolResponse({
+                    functionResponses: [{
+                      name: 'saveLead',
+                      id: toolCall.functionCall.id,
+                      response: { success: true }
+                    }]
+                  });
+                } catch (e) {
+                  handleFirestoreError(e, OperationType.CREATE, 'leads');
+                }
+              }
+            }
           },
           onclose: () => endCall(),
           onerror: (e) => {
@@ -129,6 +161,7 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Zephyr" } },
           },
+          tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
           systemInstruction: systemInstruction || DEFAULT_SYSTEM_INSTRUCTION,
         },
       });
