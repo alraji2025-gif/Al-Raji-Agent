@@ -63,11 +63,10 @@ export async function getChatResponseStream(message: string, history: any[] = []
   const limitedHistory = (history || []).slice(-15);
 
   const chat = ai.chats.create({
-    model: "gemini-3.1-flash-lite-preview",
+    model: "gemini-3-flash-preview",
     config: {
       systemInstruction,
       tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
-      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }
     },
     history: limitedHistory.map(m => ({
       role: m.role,
@@ -87,7 +86,7 @@ export async function getChatResponse(message: string, history: any[] = [], syst
   const limitedHistory = (history || []).slice(-15);
 
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-flash-lite-preview",
+    model: "gemini-3-flash-preview",
     contents: [
       ...limitedHistory.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
       { role: 'user', parts: [{ text: message }] }
@@ -95,7 +94,6 @@ export async function getChatResponse(message: string, history: any[] = [], syst
     config: {
       systemInstruction,
       tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
-      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }
     }
   });
 
