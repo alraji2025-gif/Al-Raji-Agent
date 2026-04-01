@@ -128,7 +128,10 @@ export default function Chat({ systemInstruction, onVoiceClick, onBack }: { syst
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const initialMessage: Message = { role: 'model', text: 'আসসালামু আলাইকুম! আমি Al raji agent Nusrat, আল রাজী কম্পিউটার ট্রেনিং ইনস্টিটিউট থেকে। আপনাকে কিভাবে সাহায্য করতে পারি?' };
+  const initialMessage: Message = { 
+    role: 'model', 
+    text: 'আসসালামু আলাইকুম! আমি Al raji agent Nusrat। আল রাজী কম্পিউটার ট্রেনিং ইনস্টিটিউটে আপনাকে স্বাগতম। আপনার ক্যারিয়ার গড়ার যাত্রায় আমি কিভাবে সাহায্য করতে পারি?' 
+  };
 
   // Load active session messages
   useEffect(() => {

@@ -18,11 +18,32 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
   const nextPlaybackTimeRef = useRef<number>(0);
   const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
 
+  const getHistoryText = () => {
+    try {
+      const savedSessions = localStorage.getItem('nusrat_chat_sessions');
+      const activeId = localStorage.getItem('nusrat_active_session_id');
+      if (savedSessions && activeId) {
+        const sessions = JSON.parse(savedSessions);
+        const activeSession = sessions.find((s: any) => s.id === activeId);
+        if (activeSession && activeSession.messages) {
+          // Limit to last 5 messages for voice context to avoid too long instruction
+          return activeSession.messages.slice(-5).map((m: any) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.text}`).join('\n');
+        }
+      }
+    } catch (e) {
+      console.error("Error loading history for voice:", e);
+    }
+    return '';
+  };
+
   const startCall = async () => {
     setIsCalling(true);
     setStatus('connecting');
     nextPlaybackTimeRef.current = 0;
     activeSourcesRef.current = [];
+    
+    const historyText = getHistoryText();
+    const finalSystemInstruction = `${systemInstruction || DEFAULT_SYSTEM_INSTRUCTION}\n\nPrevious conversation context:\n${historyText}`;
     
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -156,14 +177,14 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
             endCall();
           }
         },
-        config: {
-          responseModalities: [Modality.AUDIO],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Zephyr" } },
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName: "Zephyr" } },
+            },
+            tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
+            systemInstruction: finalSystemInstruction,
           },
-          tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
-          systemInstruction: systemInstruction || DEFAULT_SYSTEM_INSTRUCTION,
-        },
       });
 
       sessionRef.current = await sessionPromise;
