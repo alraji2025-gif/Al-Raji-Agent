@@ -2,6 +2,9 @@ import { GoogleGenAI, Modality, GenerateContentResponse, Type, FunctionDeclarati
 
 const API_KEY = process.env.GEMINI_API_KEY;
 
+// Reuse the instance if API_KEY is available
+const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+
 export const DEFAULT_SYSTEM_INSTRUCTION = `
 You are "Al raji agent Nusrat", a friendly, warm, and highly intelligent AI Admission Specialist for "Al-Raji Computer Training Institute".
 Your goal is to sound like a helpful, knowledgeable human who can chat about anything, just like ChatGPT, but with a focus on your institute.
@@ -55,18 +58,17 @@ export const saveLeadFunctionDeclaration: FunctionDeclaration = {
 };
 
 export async function getChatResponseStream(message: string, history: any[] = [], systemInstruction: string = DEFAULT_SYSTEM_INSTRUCTION) {
-  if (!API_KEY) throw new Error("GEMINI_API_KEY is missing");
+  if (!API_KEY || !ai) throw new Error("GEMINI_API_KEY is missing");
   
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
-  
-  // Limit history to last 15 messages to keep context window small and fast
-  const limitedHistory = (history || []).slice(-15);
+  // Limit history to last 10 messages for even faster context processing
+  const limitedHistory = (history || []).slice(-10);
 
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     config: {
       systemInstruction,
       tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }
     },
     history: limitedHistory.map(m => ({
       role: m.role,
@@ -78,12 +80,10 @@ export async function getChatResponseStream(message: string, history: any[] = []
 }
 
 export async function getChatResponse(message: string, history: any[] = [], systemInstruction: string = DEFAULT_SYSTEM_INSTRUCTION) {
-  if (!API_KEY) throw new Error("GEMINI_API_KEY is missing");
+  if (!API_KEY || !ai) throw new Error("GEMINI_API_KEY is missing");
   
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
-  
-  // Limit history to last 15 messages
-  const limitedHistory = (history || []).slice(-15);
+  // Limit history to last 10 messages
+  const limitedHistory = (history || []).slice(-10);
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -94,6 +94,7 @@ export async function getChatResponse(message: string, history: any[] = [], syst
     config: {
       systemInstruction,
       tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }
     }
   });
 
@@ -101,9 +102,8 @@ export async function getChatResponse(message: string, history: any[] = [], syst
 }
 
 export async function generateSpeech(text: string) {
-  if (!API_KEY) throw new Error("GEMINI_API_KEY is missing");
+  if (!API_KEY || !ai) throw new Error("GEMINI_API_KEY is missing");
   
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
     contents: [{ parts: [{ text: `Say this beautifully: ${text}` }] }],
