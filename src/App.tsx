@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, Phone, Info, Shield, LayoutDashboard, GraduationCap, X, LogIn, Loader2 } from 'lucide-react';
+import Home from './components/Home';
+import { MessageSquare, Phone, Info, Shield, LayoutDashboard, GraduationCap, X, LogIn, Loader2, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Chat from './components/Chat';
 import VoiceCall from './components/VoiceCall';
 import AdminPanel from './components/AdminPanel';
 import InfoModal from './components/InfoModal';
-import { db, doc, onSnapshot, auth, signInWithPopup, googleProvider, onAuthStateChanged, User } from './firebase';
+import { db, doc, onSnapshot, auth, signInWithPopup, googleProvider, onAuthStateChanged, User, signInWithEmailAndPassword, signInAnonymously } from './firebase';
 import { DEFAULT_SYSTEM_INSTRUCTION } from './services/gemini';
 
 export default function App() {
-  const [activeMode, setActiveMode] = useState<'chat' | 'voice'>('chat');
+  const [activeMode, setActiveMode] = useState<'home' | 'chat' | 'voice'>('home');
   const [showInfo, setShowInfo] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
@@ -29,6 +30,14 @@ export default function App() {
     // Listen for auth state
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
+      if (u) {
+        // Auto-login to admin panel if user matches admin criteria
+        if (u.email === 'alraji2025@gmail.com' || u.email === 'admin@alraji.com' || u.isAnonymous) {
+          setIsAdminLoggedIn(true);
+        }
+      } else {
+        setIsAdminLoggedIn(false);
+      }
     });
 
     return () => {
@@ -37,13 +46,42 @@ export default function App() {
     };
   }, []);
 
-  const handleAdminLogin = () => {
-    if (adminUsername === 'admin' && adminPassword === 'alraji2025') {
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleAdminLogin = async () => {
+    if (!adminUsername.trim() || !adminPassword.trim()) {
+      alert('Please enter both username and password');
+      return;
+    }
+
+    setIsLoggingIn(true);
+    try {
+      // 1. Check hardcoded credentials first
+      if (adminUsername === 'admin' && adminPassword === 'alraji2025') {
+        await signInAnonymously(auth);
+        setIsAdminLoggedIn(true);
+        setAdminUsername('');
+        setAdminPassword('');
+        return;
+      }
+
+      // 2. Try real email/password
+      const adminEmail = adminUsername.includes('@') ? adminUsername : `${adminUsername}@alraji.com`;
+      await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
       setIsAdminLoggedIn(true);
       setAdminUsername('');
       setAdminPassword('');
-    } else {
-      alert('Incorrect username or password!');
+    } catch (error: any) {
+      console.error("Login Error:", error);
+      let message = 'Incorrect username or password!';
+      if (error.code === 'auth/operation-not-allowed') {
+        message = 'Anonymous login is not enabled in Firebase. Please enable it or use Google login.';
+      } else if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        message = 'Invalid username or password.';
+      }
+      alert('Login failed: ' + message);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -55,21 +93,35 @@ export default function App() {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      setIsAdminLoggedIn(false);
+    } catch (error) {
+      console.error("Logout Error:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen h-screen bg-gradient-to-br from-indigo-50 via-white to-emerald-50 font-sans text-slate-900 overflow-hidden flex flex-col">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-indigo-100 px-3 py-3 md:px-6 md:py-4 flex justify-between items-center sticky top-0 z-40 shadow-sm">
-        <div className="flex items-center gap-2 md:gap-3">
-          <div className="bg-indigo-600 p-1.5 md:p-2 rounded-lg md:rounded-xl shadow-lg shadow-indigo-200 flex-shrink-0">
-            <GraduationCap className="text-white w-5 h-5 md:w-7 md:h-7" />
+      <header className="bg-white/90 backdrop-blur-xl border-b border-indigo-100 px-4 py-3 md:px-8 md:py-5 flex justify-between items-center sticky top-0 z-40 shadow-sm">
+        <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+          <div className="bg-white p-1 rounded-xl shadow-lg shadow-indigo-100 flex-shrink-0 overflow-hidden border border-indigo-50">
+            <img 
+              src="https://scontent.fdac151-1.fna.fbcdn.net/v/t39.30808-6/590387982_122105713041128923_7459473621847877221_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=1d70fc&_nc_ohc=oVkKIOPGqL4Q7kNvwHk0yau&_nc_oc=AdoojEyil8TFafvNqFvusgMW5112tzOU7OuX6uwrC2Mn-5xQFYDKSP_UIYJXFpw1swA&_nc_zt=23&_nc_ht=scontent.fdac151-1.fna&_nc_gid=O-HuU8lqu4pSzo8F6Jc6tQ&_nc_ss=7a3a8&oh=00_AfzRwYCJz2Jwbti4bJL-tnRrL5T3xKCTSf1dMDFTBAge-A&oe=69D17564" 
+              alt="Al-Raji Logo" 
+              className="w-8 h-8 md:w-12 md:h-12 object-cover rounded-lg"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm md:text-xl font-black text-indigo-900 tracking-tight leading-tight truncate md:whitespace-normal">Al-Raji Computer Training Institute</h1>
-            <p className="text-[8px] md:text-[10px] uppercase font-bold text-indigo-400 tracking-widest mt-0.5 md:mt-1">Nusrat Admission Agent</p>
+            <h1 className="text-base md:text-2xl font-black text-indigo-900 tracking-tight leading-tight truncate">Al Raji Institute</h1>
+            <p className="text-[9px] md:text-xs uppercase font-bold text-indigo-400 tracking-[0.2em] mt-0.5">Al raji agent Nusrat</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 md:gap-3 flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
           <a 
             href="https://wa.me/8801723684031" 
             target="_blank" 
@@ -91,11 +143,25 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col relative overflow-hidden md:container md:mx-auto md:max-w-5xl md:p-8">
+      <main className="flex-1 flex flex-col relative overflow-hidden md:container md:mx-auto md:max-w-6xl md:p-8 p-4">
         {/* Active Component */}
         <div className="flex-1 min-h-0 relative">
           <AnimatePresence mode="wait">
-            {activeMode === 'chat' ? (
+            {activeMode === 'home' ? (
+              <motion.div
+                key="home"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="h-full"
+              >
+                <Home 
+                  onStartChat={() => setActiveMode('chat')}
+                  onStartCall={() => setActiveMode('voice')}
+                  onShowInfo={() => setShowInfo(true)}
+                />
+              </motion.div>
+            ) : activeMode === 'chat' ? (
               <motion.div
                 key="chat"
                 initial={{ opacity: 0, x: -20 }}
@@ -106,6 +172,7 @@ export default function App() {
                 <Chat 
                   systemInstruction={systemInstruction} 
                   onVoiceClick={() => setActiveMode('voice')}
+                  onBack={() => setActiveMode('home')}
                 />
               </motion.div>
             ) : (
@@ -118,7 +185,7 @@ export default function App() {
               >
                 <VoiceCall 
                   systemInstruction={systemInstruction} 
-                  onBack={() => setActiveMode('chat')}
+                  onBack={() => setActiveMode('home')} 
                 />
               </motion.div>
             )}
@@ -148,14 +215,22 @@ export default function App() {
             <motion.div
               initial={{ scale: 0.9, y: 20 }}
               animate={{ scale: 1, y: 0 }}
-              className="bg-white w-full max-w-4xl h-[80vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col relative"
+              className="bg-white w-full max-w-4xl h-[90vh] md:h-[80vh] rounded-3xl overflow-hidden shadow-2xl flex flex-col relative"
             >
-              <button 
-                onClick={() => setShowAdmin(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full transition-all z-10"
-              >
-                <X size={24} />
-              </button>
+              <div className="flex items-center justify-between p-4 border-b border-slate-100">
+                <button 
+                  onClick={() => setShowAdmin(false)}
+                  className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-all font-bold text-sm"
+                >
+                  <X size={20} />
+                  Back
+                </button>
+                <div className="flex items-center gap-2">
+                  <Shield className="text-indigo-600" size={20} />
+                  <span className="font-black text-slate-900">Admin Portal</span>
+                </div>
+                <div className="w-20"></div> {/* Spacer */}
+              </div>
 
               {!isAdminLoggedIn ? (
                 <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -165,28 +240,37 @@ export default function App() {
                   <h2 className="text-2xl font-black text-slate-900 mb-2">Admin Access</h2>
                   <p className="text-slate-500 mb-8">Enter password to access admin panel</p>
                   
-                  <div className="w-full max-w-xs space-y-4">
-                    <input
-                      type="text"
-                      value={adminUsername}
-                      onChange={(e) => setAdminUsername(e.target.value)}
-                      placeholder="Username"
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-center font-bold"
-                    />
-                    <input
-                      type="password"
-                      value={adminPassword}
-                      onChange={(e) => setAdminPassword(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
-                      placeholder="Password"
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none text-center font-bold tracking-widest"
-                    />
+                  <div className="w-full max-w-sm space-y-4">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={adminUsername}
+                        onChange={(e) => setAdminUsername(e.target.value)}
+                        placeholder="Username or Email"
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium transition-all"
+                      />
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        value={adminPassword}
+                        onChange={(e) => setAdminPassword(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
+                        placeholder="Password"
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium transition-all"
+                      />
+                    </div>
                     <button
                       onClick={handleAdminLogin}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
+                      disabled={isLoggingIn}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white py-4 rounded-2xl font-bold shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
                     >
-                      <LogIn size={20} />
-                      Login
+                      {isLoggingIn ? (
+                        <Loader2 className="animate-spin" size={20} />
+                      ) : (
+                        <LogIn size={20} />
+                      )}
+                      {isLoggingIn ? 'Logging in...' : 'Login to Admin Panel'}
                     </button>
                   </div>
                   
@@ -195,7 +279,10 @@ export default function App() {
                   </p>
                 </div>
               ) : (
-                <AdminPanel onLogout={() => setIsAdminLoggedIn(false)} />
+                <AdminPanel 
+                  onLogout={handleLogout} 
+                  onBack={() => setShowAdmin(false)} 
+                />
               )}
             </motion.div>
           </motion.div>

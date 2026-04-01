@@ -1,5 +1,5 @@
 {
-  "name": "Nusrat AI Voice Agent",
+  "name": "Al raji agent Nusrat",
   "description": "An AI Voice Agent for Al-Raji Computer Training Institute, helping with student admissions in Bengali and English.",
   "requestFramePermissions": ["microphone"]
 }

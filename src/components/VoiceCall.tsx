@@ -43,7 +43,7 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
       processorRef.current.connect(audioContextRef.current.destination);
 
       const sessionPromise = ai.live.connect({
-        model: "gemini-2.5-flash-native-audio-preview-09-2025",
+        model: "gemini-3.1-flash-live-preview",
         callbacks: {
           onopen: () => {
             setStatus('active');
@@ -56,7 +56,7 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
               }
               const base64Data = btoa(String.fromCharCode(...new Uint8Array(pcmData.buffer)));
               sessionRef.current?.sendRealtimeInput({
-                media: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
+                audio: { data: base64Data, mimeType: 'audio/pcm;rate=16000' }
               });
             };
           },
@@ -196,23 +196,23 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
           >
             <div className="relative">
               <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-2xl animate-pulse"></div>
-              <div className="w-32 h-32 bg-white/5 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/10 relative">
-                <Mic size={48} className="text-indigo-300" />
+              <div className="w-24 h-24 md:w-32 md:h-32 bg-white/5 backdrop-blur-xl rounded-full flex items-center justify-center border border-white/10 relative">
+                <Mic size={32} className="text-indigo-300 md:w-12 md:h-12" />
               </div>
             </div>
             
             <div>
-              <h3 className="text-3xl font-black tracking-tight mb-3 bg-gradient-to-b from-white to-indigo-300 bg-clip-text text-transparent">
+              <h3 className="text-2xl md:text-3xl font-black tracking-tight mb-3 bg-gradient-to-b from-white to-indigo-300 bg-clip-text text-transparent">
                 ভয়েস কল শুরু করুন
               </h3>
-              <p className="text-indigo-200/60 text-sm leading-relaxed">
-                নুসরাতের সাথে সরাসরি কথা বলে আপনার অ্যাডমিশন সংক্রান্ত সকল তথ্য জেনে নিন।
+              <p className="text-indigo-200/60 text-xs md:text-sm leading-relaxed">
+                Al raji agent Nusrat-এর সাথে সরাসরি কথা বলে আপনার অ্যাডমিশন সংক্রান্ত সকল তথ্য জেনে নিন।
               </p>
             </div>
 
             <button
               onClick={startCall}
-              className="group relative px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-lg transition-all shadow-2xl shadow-indigo-900/40 flex items-center gap-3 overflow-hidden"
+              className="group relative px-6 py-3 md:px-8 md:py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-base md:text-lg transition-all shadow-2xl shadow-indigo-900/40 flex items-center gap-3 overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
               <Mic size={24} />
@@ -236,15 +236,15 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/80">
+                <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400/80">
                   {status === 'connecting' ? 'Establishing Connection...' : 'Live Session Active'}
                 </span>
               </motion.div>
-              <h3 className="text-4xl font-black tracking-tighter">নুসরাত</h3>
-              <p className="text-indigo-300/40 text-xs font-mono">ENCRYPTED VOICE CHANNEL</p>
+              <h3 className="text-2xl md:text-4xl font-black tracking-tighter">Al raji agent Nusrat</h3>
+              <p className="text-indigo-300/40 text-[10px] font-mono">ENCRYPTED VOICE CHANNEL</p>
             </div>
 
-            <div className="relative flex items-center justify-center w-full max-w-md aspect-square">
+            <div className="relative flex items-center justify-center w-full max-w-xs md:max-w-md aspect-square">
               {/* Animated Rings */}
               {[1, 2, 3].map((i) => (
                 <motion.div
@@ -263,8 +263,8 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
                 ></motion.div>
               ))}
               
-              <div className="w-56 h-56 bg-white/5 backdrop-blur-2xl rounded-full border border-white/10 flex items-center justify-center relative shadow-inner">
-                <div className="flex gap-1.5 items-end h-16">
+              <div className="w-40 h-40 md:w-56 md:h-56 bg-white/5 backdrop-blur-2xl rounded-full border border-white/10 flex items-center justify-center relative shadow-inner">
+                <div className="flex gap-1 md:gap-1.5 items-end h-12 md:h-16">
                   {[...Array(12)].map((_, i) => (
                     <motion.div
                       key={i}
@@ -278,39 +278,39 @@ export default function VoiceCall({ systemInstruction, onBack }: { systemInstruc
                         delay: i * 0.05,
                         ease: "easeInOut"
                       }}
-                      className="w-1.5 bg-gradient-to-t from-indigo-500 to-emerald-400 rounded-full"
+                      className="w-1 md:w-1.5 bg-gradient-to-t from-indigo-500 to-emerald-400 rounded-full"
                     ></motion.div>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="w-full max-w-lg space-y-8">
-              <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-3xl p-6 min-h-[100px] flex items-center justify-center text-center">
-                <p className="text-indigo-100/80 text-lg font-medium leading-relaxed italic">
+            <div className="w-full max-w-lg space-y-6 md:space-y-8">
+              <div className="bg-white/5 backdrop-blur-md border border-white/5 rounded-3xl p-4 md:p-6 min-h-[80px] md:min-h-[100px] flex items-center justify-center text-center">
+                <p className="text-indigo-100/80 text-base md:text-lg font-medium leading-relaxed italic">
                   {transcript || (status === 'connecting' ? 'Connecting to server...' : 'কথা বলা শুরু করুন, আমি শুনছি...')}
                 </p>
               </div>
 
-              <div className="flex justify-center gap-8">
+              <div className="flex justify-center gap-6 md:gap-8">
                 <button
                   onClick={() => setIsMuted(!isMuted)}
-                  className={`group relative p-6 rounded-full transition-all duration-500 ${
+                  className={`group relative p-4 md:p-6 rounded-full transition-all duration-500 ${
                     isMuted 
                       ? 'bg-red-500/20 text-red-500 border-red-500/50' 
                       : 'bg-white/5 text-white border-white/10 hover:bg-white/10'
                   } border backdrop-blur-xl`}
                 >
                   <div className={`absolute inset-0 rounded-full blur-xl transition-opacity duration-500 ${isMuted ? 'bg-red-500/20 opacity-100' : 'opacity-0'}`}></div>
-                  {isMuted ? <MicOff size={32} className="relative" /> : <Mic size={32} className="relative" />}
+                  {isMuted ? <MicOff size={24} className="relative md:w-8 md:h-8" /> : <Mic size={24} className="relative md:w-8 md:h-8" />}
                 </button>
                 
                 <button
                   onClick={endCall}
-                  className="group relative p-6 bg-red-600 hover:bg-red-500 text-white rounded-full transition-all duration-500 shadow-2xl shadow-red-900/40 border border-red-400/20"
+                  className="group relative p-4 md:p-6 bg-red-600 hover:bg-red-500 text-white rounded-full transition-all duration-500 shadow-2xl shadow-red-900/40 border border-red-400/20"
                 >
                   <div className="absolute inset-0 rounded-full bg-red-600 blur-2xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
-                  <PhoneOff size={32} className="relative" />
+                  <PhoneOff size={24} className="relative md:w-8 md:h-8" />
                 </button>
               </div>
             </div>

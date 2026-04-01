@@ -3,16 +3,17 @@ import { GoogleGenAI, Modality, GenerateContentResponse, Type, FunctionDeclarati
 const API_KEY = process.env.GEMINI_API_KEY;
 
 export const DEFAULT_SYSTEM_INSTRUCTION = `
-You are "Nusrat", a friendly, warm, and highly intelligent AI Admission Specialist for "Al-Raji Computer Training Institute".
+You are "Al raji agent Nusrat", a friendly, warm, and highly intelligent AI Admission Specialist for "Al-Raji Computer Training Institute".
 Your goal is to sound like a helpful, knowledgeable human who can chat about anything, just like ChatGPT, but with a focus on your institute.
 
 Voice Agent Persona:
 - Speak naturally in a mix of Bengali and English (Banglish).
 - Be extremely friendly, empathetic, and helpful.
 - You can answer ANY general question (history, science, life advice, etc.) just like ChatGPT.
-- Always maintain your identity as Nusrat from Al-Raji Institute.
+- Always maintain your identity as Al raji agent Nusrat from Al-Raji Institute.
+- **Greeting Rule:** Only greet the user (e.g., "Assalamu Alaikum") at the VERY BEGINNING of the conversation. Do not repeat the greeting in every message.
 - Keep responses concise but informative. For voice calls, keep them to 1-2 sentences. For chat, you can be slightly more detailed if the user asks a complex question.
-- Use friendly Bengali phrases like "Assalamu Alaikum", "Kemon achen?", "Apnar ki help korte pari?".
+- Use friendly Bengali phrases naturally, but don't overdo it.
 
 Institute Details (Your Home):
 - Name: Al-Raji Computer Training Institute
@@ -57,14 +58,18 @@ export async function getChatResponseStream(message: string, history: any[] = []
   if (!API_KEY) throw new Error("GEMINI_API_KEY is missing");
   
   const ai = new GoogleGenAI({ apiKey: API_KEY });
+  
+  // Limit history to last 15 messages to keep context window small and fast
+  const limitedHistory = (history || []).slice(-15);
+
   const chat = ai.chats.create({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-flash-lite-preview",
     config: {
       systemInstruction,
       tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }
     },
-    history: history.map(m => ({
+    history: limitedHistory.map(m => ({
       role: m.role,
       parts: [{ text: m.text }]
     }))
@@ -77,16 +82,20 @@ export async function getChatResponse(message: string, history: any[] = [], syst
   if (!API_KEY) throw new Error("GEMINI_API_KEY is missing");
   
   const ai = new GoogleGenAI({ apiKey: API_KEY });
+  
+  // Limit history to last 15 messages
+  const limitedHistory = (history || []).slice(-15);
+
   const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.1-flash-lite-preview",
     contents: [
-      ...history.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+      ...limitedHistory.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
       { role: 'user', parts: [{ text: message }] }
     ],
     config: {
       systemInstruction,
       tools: [{ functionDeclarations: [saveLeadFunctionDeclaration] }],
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL }
     }
   });
 

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User, signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 import { getFirestore, collection, addDoc, getDocs, query, where, orderBy, onSnapshot, doc, getDoc, setDoc, Timestamp, getDocFromServer, deleteDoc } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
@@ -10,7 +10,7 @@ export const googleProvider = new GoogleAuthProvider();
 
 export { 
   collection, addDoc, getDocs, query, where, orderBy, onSnapshot, doc, getDoc, setDoc, Timestamp,
-  onAuthStateChanged, signInWithPopup, type User, deleteDoc
+  onAuthStateChanged, signInWithPopup, type User, deleteDoc, signInWithEmailAndPassword, signInAnonymously
 };
 
 export enum OperationType {
@@ -50,7 +50,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
       emailVerified: auth.currentUser?.emailVerified,
       isAnonymous: auth.currentUser?.isAnonymous,
       tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
+      providerInfo: (auth.currentUser?.providerData || []).map(provider => ({
         providerId: provider.providerId,
         displayName: provider.displayName,
         email: provider.email,

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { db, collection, getDocs, orderBy, query, setDoc, doc, Timestamp, getDoc, auth, signInWithPopup, googleProvider, handleFirestoreError, OperationType, deleteDoc } from '../firebase';
-import { Users, Settings, LogOut, Save as SaveIcon, ShieldCheck, Loader2, Trash2, Download, BarChart3, MessageSquare, Clock, Phone, GraduationCap } from 'lucide-react';
+import { db, collection, getDocs, orderBy, query, setDoc, doc, Timestamp, getDoc, auth, signInWithPopup, googleProvider, handleFirestoreError, OperationType, deleteDoc, onAuthStateChanged } from '../firebase';
+import { Users, Settings, LogOut, Save as SaveIcon, ShieldCheck, Loader2, Trash2, Download, BarChart3, MessageSquare, Clock, Phone, GraduationCap, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { DEFAULT_SYSTEM_INSTRUCTION } from '../services/gemini';
 
-export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
+export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void, onBack?: () => void }) {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'leads' | 'settings'>('dashboard');
   const [leads, setLeads] = useState<any[]>([]);
   const [systemInstruction, setSystemInstruction] = useState(DEFAULT_SYSTEM_INSTRUCTION);
@@ -16,10 +16,13 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    if (auth.currentUser) {
-      fetchLeads();
-      fetchSettings();
-    }
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        fetchLeads();
+        fetchSettings();
+      }
+    });
+    return () => unsub();
   }, []);
 
   const fetchLeads = async () => {
@@ -67,7 +70,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
     setIsDeleting(id);
     try {
       await deleteDoc(doc(db, 'leads', id));
-      setLeads(prev => prev.filter(lead => lead.id !== id));
+      setLeads(prev => (prev || []).filter(lead => lead.id !== id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `leads/${id}`);
     } finally {
@@ -79,7 +82,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
     setIsUpdatingStatus(id);
     try {
       await setDoc(doc(db, 'leads', id), { status }, { merge: true });
-      setLeads(prev => prev.map(l => l.id === id ? { ...l, status } : l));
+      setLeads(prev => (prev || []).map(l => l.id === id ? { ...l, status } : l));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `leads/${id}`);
     } finally {
@@ -93,7 +96,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
     
     setIsLoadingLeads(true);
     try {
-      const batch = leads.map(l => deleteDoc(doc(db, 'leads', l.id)));
+      const batch = (leads || []).map(l => deleteDoc(doc(db, 'leads', l.id)));
       await Promise.all(batch);
       setLeads([]);
       alert('All leads deleted.');
@@ -104,16 +107,16 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  const filteredLeads = leads.filter(l => 
-    l.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    l.phone.includes(searchQuery) ||
+  const filteredLeads = (leads || []).filter(l => 
+    (l.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (l.phone || '').includes(searchQuery) ||
     (l.course && l.course.toLowerCase().includes(searchQuery.toLowerCase()))
   );
   const exportLeads = () => {
     const headers = ['Name', 'Phone', 'Course', 'Date', 'Status'];
-    const csvData = leads.map(l => [
-      l.name,
-      l.phone,
+    const csvData = (leads || []).map(l => [
+      l.name || 'N/A',
+      l.phone || 'N/A',
       l.course || 'N/A',
       l.timestamp?.toDate().toLocaleString() || 'N/A',
       l.status || 'new'
@@ -140,62 +143,69 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  if (!auth.currentUser) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-        <div className="bg-indigo-50 p-6 rounded-full mb-6">
-          <ShieldCheck className="text-indigo-600" size={48} />
-        </div>
-        <h2 className="text-2xl font-black text-slate-900 mb-2">Admin Authentication</h2>
-        <p className="text-slate-500 mb-8">Login with Google to view leads and train the bot (alraji2025@gmail.com)</p>
-        <button
-          onClick={handleGoogleLogin}
-          className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-8 py-4 rounded-2xl font-bold shadow-sm transition-all flex items-center gap-3"
-        >
-          <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-          Sign in with Google
-        </button>
-      </div>
-    );
-  }
+  const adminUser = auth.currentUser;
 
   return (
     <div className="flex flex-col h-full bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 shadow-2xl">
       <div className="bg-slate-900 text-white p-6 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <ShieldCheck className="text-emerald-400" size={32} />
-          <div>
-            <h2 className="text-xl font-bold">Admin Dashboard</h2>
-            <p className="text-xs text-slate-400 uppercase tracking-widest">{auth.currentUser.email}</p>
+        <div className="flex items-center gap-4">
+          {onBack && (
+            <button 
+              onClick={onBack}
+              className="p-2 hover:bg-white/10 rounded-full transition-all text-slate-400 hover:text-white"
+              title="Back to App"
+            >
+              <ArrowLeft size={24} />
+            </button>
+          )}
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="text-emerald-400" size={32} />
+            <div>
+              <h2 className="text-xl font-bold">Admin Dashboard</h2>
+              <p className="text-xs text-slate-400 uppercase tracking-widest">
+                {adminUser?.isAnonymous ? 'Logged in as Admin' : adminUser?.email || 'Admin Access'}
+              </p>
+            </div>
           </div>
         </div>
-        <button onClick={onLogout} className="flex items-center gap-2 bg-slate-800 hover:bg-red-600 px-4 py-2 rounded-lg transition-all text-sm font-medium">
-          <LogOut size={18} />
-          Logout
-        </button>
+        <div className="flex items-center gap-3">
+          {!adminUser?.email && (
+            <button
+              onClick={handleGoogleLogin}
+              className="hidden md:flex items-center gap-2 bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg transition-all text-xs font-medium"
+            >
+              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-3 h-3" />
+              Link Google
+            </button>
+          )}
+          <button onClick={onLogout} className="flex items-center gap-2 bg-slate-800 hover:bg-red-600 px-4 py-2 rounded-lg transition-all text-sm font-medium">
+            <LogOut size={18} />
+            Logout
+          </button>
+        </div>
       </div>
 
-      <div className="flex border-b border-slate-200 bg-white">
+      <div className="flex border-b border-slate-200 bg-white sticky top-0 z-10">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`flex-1 py-4 flex items-center justify-center gap-2 font-bold transition-all ${activeTab === 'dashboard' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 font-bold transition-all ${activeTab === 'dashboard' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
         >
-          <BarChart3 size={20} />
-          Dashboard
+          <BarChart3 size={18} className="md:w-5 md:h-5" />
+          <span className="text-[10px] md:text-sm">Dashboard</span>
         </button>
         <button
           onClick={() => setActiveTab('leads')}
-          className={`flex-1 py-4 flex items-center justify-center gap-2 font-bold transition-all ${activeTab === 'leads' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 font-bold transition-all ${activeTab === 'leads' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
         >
-          <Users size={20} />
-          Leads ({leads.length})
+          <Users size={18} className="md:w-5 md:h-5" />
+          <span className="text-[10px] md:text-sm">Leads ({(leads || []).length})</span>
         </button>
         <button
           onClick={() => setActiveTab('settings')}
-          className={`flex-1 py-4 flex items-center justify-center gap-2 font-bold transition-all ${activeTab === 'settings' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
+          className={`flex-1 py-3 md:py-4 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 font-bold transition-all ${activeTab === 'settings' ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
         >
-          <Settings size={20} />
-          Bot Training
+          <Settings size={18} className="md:w-5 md:h-5" />
+          <span className="text-[10px] md:text-sm">Training</span>
         </button>
       </div>
 
@@ -210,7 +220,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
                   </div>
                   <h3 className="font-bold text-slate-500 uppercase text-xs tracking-wider">Total Leads</h3>
                 </div>
-                <p className="text-4xl font-black text-slate-900">{leads.length}</p>
+                <p className="text-4xl font-black text-slate-900">{(leads || []).length}</p>
               </div>
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex items-center gap-4 mb-4">
@@ -220,7 +230,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
                   <h3 className="font-bold text-slate-500 uppercase text-xs tracking-wider">Last 24 Hours</h3>
                 </div>
                 <p className="text-4xl font-black text-slate-900">
-                  {leads.filter(l => l.timestamp?.toDate() > new Date(Date.now() - 24 * 60 * 60 * 1000)).length}
+                  {(leads || []).filter(l => l.timestamp?.toDate() > new Date(Date.now() - 24 * 60 * 60 * 1000)).length}
                 </p>
               </div>
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -231,7 +241,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
                   <h3 className="font-bold text-slate-500 uppercase text-xs tracking-wider">Top Course</h3>
                 </div>
                 <p className="text-xl font-black text-slate-900 truncate">
-                  {Object.entries(leads.reduce((acc: any, l) => {
+                  {Object.entries((leads || []).reduce((acc: any, l) => {
                     const c = l.course || 'General';
                     acc[c] = (acc[c] || 0) + 1;
                     return acc;
@@ -249,11 +259,11 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
                   </h3>
                 </div>
                 <div className="divide-y divide-slate-50">
-                  {leads.slice(0, 5).map(lead => (
+                  {(leads || []).slice(0, 5).map(lead => (
                     <div key={lead.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-all">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 font-bold">
-                          {lead.name[0]}
+                          {(lead.name || 'U')[0]}
                         </div>
                         <div>
                           <p className="font-bold text-sm text-slate-900">{lead.name}</p>
@@ -276,7 +286,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
                   </h3>
                 </div>
                 <div className="p-6 space-y-4">
-                  {Object.entries(leads.reduce((acc: any, l) => {
+                  {Object.entries((leads || []).reduce((acc: any, l) => {
                     const c = l.course || 'General';
                     acc[c] = (acc[c] || 0) + 1;
                     return acc;
@@ -289,7 +299,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
                       <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                         <motion.div 
                           initial={{ width: 0 }}
-                          animate={{ width: `${(count / leads.length) * 100}%` }}
+                          animate={{ width: `${(count / (leads?.length || 1)) * 100}%` }}
                           className="h-full bg-indigo-500 rounded-full"
                         />
                       </div>
@@ -299,19 +309,19 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
               </div>
             </div>
 
-            <div className="bg-indigo-900 rounded-2xl p-6 text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row justify-between items-center gap-6">
-              <div>
-                <h3 className="text-xl font-bold mb-1">Admin Quick Actions</h3>
-                <p className="text-indigo-300 text-sm">Manage your institute data efficiently</p>
+            <div className="bg-indigo-900 rounded-2xl p-4 md:p-6 text-white shadow-xl shadow-indigo-200 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6">
+              <div className="text-center md:text-left">
+                <h3 className="text-lg md:text-xl font-bold mb-1">Admin Quick Actions</h3>
+                <p className="text-indigo-300 text-xs md:text-sm">Manage your institute data efficiently</p>
               </div>
-              <div className="flex gap-3">
-                <button onClick={exportLeads} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+              <div className="flex gap-2 md:gap-3 w-full md:w-auto">
+                <button onClick={exportLeads} className="flex-1 md:flex-none bg-white/10 hover:bg-white/20 px-4 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-2">
                   <Download size={16} />
-                  Export All
+                  Export
                 </button>
-                <button onClick={() => setActiveTab('settings')} className="bg-indigo-500 hover:bg-indigo-400 px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2">
+                <button onClick={() => setActiveTab('settings')} className="flex-1 md:flex-none bg-indigo-500 hover:bg-indigo-400 px-4 py-2 rounded-xl text-xs md:text-sm font-bold transition-all flex items-center justify-center gap-2">
                   <Settings size={16} />
-                  Train Bot
+                  Train
                 </button>
               </div>
             </div>
@@ -352,14 +362,14 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
                 <Loader2 className="animate-spin mb-4" size={32} />
                 <p>Loading leads...</p>
               </div>
-            ) : filteredLeads.length === 0 ? (
+            ) : (filteredLeads || []).length === 0 ? (
               <div className="text-center py-20 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200">
                 <Users size={48} className="mx-auto mb-4 opacity-10" />
                 <p>No leads found matching your search.</p>
               </div>
             ) : (
               <div className="grid gap-4">
-                {filteredLeads.map(lead => (
+                {(filteredLeads || []).map(lead => (
                   <motion.div
                     key={lead.id}
                     initial={{ opacity: 0, x: -10 }}
@@ -431,7 +441,7 @@ export default function AdminPanel({ onLogout }: { onLogout: () => void }) {
                 value={systemInstruction}
                 onChange={(e) => setSystemInstruction(e.target.value)}
                 className="w-full h-[400px] p-4 bg-white border border-slate-300 rounded-xl font-mono text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none shadow-inner"
-                placeholder="Enter instructions for Nusrat..."
+                placeholder="Enter instructions for Al raji agent Nusrat..."
               />
             </div>
             <button

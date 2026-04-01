@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MapPin, Phone, Clock, GraduationCap, CheckCircle2 } from 'lucide-react';
+import { X, MapPin, Phone, Clock, GraduationCap, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export default function InfoModal({ onClose, onAdminClick }: { onClose: () => void, onAdminClick: () => void }) {
@@ -17,8 +17,11 @@ export default function InfoModal({ onClose, onAdminClick }: { onClose: () => vo
       >
         <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <GraduationCap size={32} />
-            <h2 className="text-2xl font-bold">Institute Information</h2>
+            <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-all md:hidden">
+              <ArrowLeft size={24} />
+            </button>
+            <GraduationCap size={32} className="hidden md:block" />
+            <h2 className="text-xl md:text-2xl font-bold">Institute Information</h2>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/20 rounded-full transition-all">
             <X size={24} />

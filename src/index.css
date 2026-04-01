@@ -7,10 +7,48 @@
 
 @layer base {
   body {
-    @apply antialiased text-slate-900;
+    @apply antialiased bg-[#212121] text-white;
   }
 }
 
+.prose {
+  @apply text-white/90;
+}
+
 .prose p {
-  @apply mb-2 last:mb-0;
+  @apply mb-4 last:mb-0 leading-relaxed;
+}
+
+.prose strong {
+  @apply text-white font-bold;
+}
+
+.prose ul, .prose ol {
+  @apply my-4 ml-6 space-y-2;
+}
+
+.prose li {
+  @apply list-disc;
+}
+
+/* ChatGPT Scrollbar */
+.custom-scrollbar::-webkit-scrollbar,
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
