@@ -113,13 +113,14 @@ export default function InfoModal({ onClose, onAdminClick }: { onClose: () => vo
             </div>
           </section>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-center">
+          <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-2">
             <button 
               onClick={onAdminClick}
               className="text-slate-400 hover:text-indigo-600 text-xs font-medium transition-colors"
             >
               Admin Login
             </button>
+            <p className="text-[10px] text-slate-300">Only authorized administrators can access this panel.</p>
           </div>
         </div>
       </motion.div>
