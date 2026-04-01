@@ -15,7 +15,11 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
   const [searchQuery, setSearchQuery] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState<string | null>(null);
 
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
   useEffect(() => {
+    let unsubLeads: (() => void) | null = null;
+
     const unsubAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         fetchSettings();
@@ -23,19 +27,45 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
         // Real-time leads listener
         setIsLoadingLeads(true);
         const q = query(collection(db, 'leads'), orderBy('timestamp', 'desc'));
-        const unsubLeads = onSnapshot(q, (snapshot) => {
-          setLeads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        unsubLeads = onSnapshot(q, (snapshot) => {
+          const fetchedLeads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          console.log(`Fetched ${fetchedLeads.length} leads`);
+          setLeads(fetchedLeads);
           setIsLoadingLeads(false);
+          setLastRefresh(new Date());
         }, (error) => {
+          console.error("Firestore Listener Error:", error);
           handleFirestoreError(error, OperationType.LIST, 'leads');
           setIsLoadingLeads(false);
         });
-        
-        return () => unsubLeads();
+      } else {
+        setLeads([]);
+        if (unsubLeads) {
+          unsubLeads();
+          unsubLeads = null;
+        }
       }
     });
-    return () => unsubAuth();
+
+    return () => {
+      unsubAuth();
+      if (unsubLeads) unsubLeads();
+    };
   }, []);
+
+  const manualRefresh = async () => {
+    setIsLoadingLeads(true);
+    try {
+      const q = query(collection(db, 'leads'), orderBy('timestamp', 'desc'));
+      const snapshot = await getDocs(q);
+      setLeads(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLastRefresh(new Date());
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'leads');
+    } finally {
+      setIsLoadingLeads(false);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -117,7 +147,7 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
       l.name || 'N/A',
       l.phone || 'N/A',
       l.course || 'N/A',
-      l.timestamp?.toDate().toLocaleString() || 'N/A',
+      l.timestamp?.toDate ? l.timestamp.toDate().toLocaleString() : (l.timestamp ? new Date(l.timestamp).toLocaleString() : 'N/A'),
       l.status || 'new'
     ]);
     
@@ -207,7 +237,7 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -228,7 +258,10 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
                   <h3 className="font-bold text-slate-500 uppercase text-xs tracking-wider">Last 24 Hours</h3>
                 </div>
                 <p className="text-4xl font-black text-slate-900">
-                  {(leads || []).filter(l => l.timestamp?.toDate() > new Date(Date.now() - 24 * 60 * 60 * 1000)).length}
+                  {(leads || []).filter(l => {
+                    const ts = l.timestamp?.toDate ? l.timestamp.toDate() : (l.timestamp ? new Date(l.timestamp) : null);
+                    return ts && ts > new Date(Date.now() - 24 * 60 * 60 * 1000);
+                  }).length}
                 </p>
               </div>
               <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
@@ -329,7 +362,19 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
         {activeTab === 'leads' && (
           <div className="space-y-4">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-2">
-              <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest">Manage Student Leads</h3>
+              <div className="flex items-center gap-3">
+                <h3 className="font-bold text-slate-900 uppercase text-xs tracking-widest">Manage Student Leads</h3>
+                <button 
+                  onClick={manualRefresh}
+                  className="p-1.5 text-slate-400 hover:text-indigo-600 transition-all"
+                  title="Refresh Leads"
+                >
+                  <Clock size={14} className={isLoadingLeads ? 'animate-spin' : ''} />
+                </button>
+                <span className="text-[10px] text-slate-400 font-medium">
+                  Last updated: {lastRefresh.toLocaleTimeString()}
+                </span>
+              </div>
               <div className="flex items-center gap-2 w-full md:w-auto">
                 <input 
                   type="text" 
@@ -387,7 +432,7 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
                         </div>
                         <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
                           <Clock size={10} />
-                          {lead.timestamp?.toDate().toLocaleString() || 'N/A'}
+                          {lead.timestamp?.toDate ? lead.timestamp.toDate().toLocaleString() : (lead.timestamp ? new Date(lead.timestamp).toLocaleString() : 'N/A')}
                         </p>
                       </div>
                     </div>
