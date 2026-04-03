@@ -17,6 +17,8 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     let unsubLeads: (() => void) | null = null;
 
@@ -26,6 +28,7 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
         
         // Real-time leads listener
         setIsLoadingLeads(true);
+        setError(null);
         const q = query(collection(db, 'leads'), orderBy('timestamp', 'desc'));
         unsubLeads = onSnapshot(q, (snapshot) => {
           const fetchedLeads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -33,9 +36,9 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
           setLeads(fetchedLeads);
           setIsLoadingLeads(false);
           setLastRefresh(new Date());
-        }, (error) => {
-          console.error("Firestore Listener Error:", error);
-          handleFirestoreError(error, OperationType.LIST, 'leads');
+        }, (err) => {
+          console.error("Firestore Listener Error:", err);
+          setError("You don't have permission to view leads. Please ensure you are logged in as an authorized admin.");
           setIsLoadingLeads(false);
         });
       } else {
@@ -400,6 +403,13 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
               </div>
             </div>
             
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 flex items-center gap-3">
+                <ShieldCheck size={20} className="text-red-500" />
+                <p className="text-sm font-medium">{error}</p>
+              </div>
+            )}
+
             {isLoadingLeads ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                 <Loader2 className="animate-spin mb-4" size={32} />

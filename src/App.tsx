@@ -58,11 +58,13 @@ export default function App() {
     try {
       // 1. Check hardcoded credentials first
       if (adminUsername.toLowerCase() === 'admin' && adminPassword === 'alraji2025') {
-        // Sign in anonymously so we have a valid Firebase UID for Firestore rules
-        await signInAnonymously(auth);
+        // We no longer call signInAnonymously here to avoid the 'auth/admin-restricted-operation' error.
+        // This means the user will be logged in locally, but Firestore rules might block data access
+        // unless they also sign in with a real account (like Google).
         setIsAdminLoggedIn(true);
         setAdminUsername('');
         setAdminPassword('');
+        console.warn("Logged in as local admin. Database access may be restricted. Use Google Login for full access.");
         return;
       }
 
@@ -76,9 +78,11 @@ export default function App() {
       console.error("Login Error:", error);
       let message = 'Incorrect username or password!';
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-        message = 'Invalid username or password.';
+        message = 'Invalid username or password. If you are using your Gmail, please use the "Login with Google" button below.';
       } else if (error.code === 'auth/too-many-requests') {
         message = 'Too many failed attempts. Please try again later.';
+      } else if (error.code === 'auth/network-request-failed') {
+        message = 'Network error. Please check your internet connection.';
       }
       alert('Login failed: ' + message);
     } finally {

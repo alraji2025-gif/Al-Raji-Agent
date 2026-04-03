@@ -78,23 +78,41 @@ export default function InfoModal({ onClose, onAdminClick }: { onClose: () => vo
 
           <section>
             <h3 className="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2">
+              <GraduationCap className="text-indigo-500" size={20} />
+              Our Experts
+            </h3>
+            <div className="space-y-4">
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <p className="text-xs text-indigo-600 font-black uppercase tracking-wider mb-1">Director & Graphics Expert</p>
+                <p className="font-bold text-slate-800 text-lg">Md. Raizul Islam</p>
+                <p className="text-xs text-slate-500 mt-1">Studying at Jatiya Kabi Kazi Nazrul Islam University</p>
+              </div>
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <p className="text-xs text-emerald-600 font-black uppercase tracking-wider mb-1">Digital Marketing Expert</p>
+                <p className="font-bold text-slate-800 text-lg">Tahmid Islam</p>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-lg font-bold text-indigo-900 mb-4 flex items-center gap-2">
               <Phone className="text-indigo-500" size={20} />
-              Contact
+              Contact (WhatsApp Available)
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <div>
-                  <p className="text-xs text-slate-400 font-bold uppercase">Md. Raizul Islam</p>
+                  <p className="text-xs text-slate-400 font-bold uppercase">Raizul Islam</p>
                   <p className="font-bold text-slate-800">01903584883</p>
                 </div>
-                <a href="https://wa.me/8801903584883" target="_blank" className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold">WhatsApp</a>
+                <a href="https://wa.me/8801903584883" target="_blank" className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">WhatsApp</a>
               </div>
               <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <div>
                   <p className="text-xs text-slate-400 font-bold uppercase">Tahmid Islam</p>
                   <p className="font-bold text-slate-800">01723684031</p>
                 </div>
-                <a href="https://wa.me/8801723684031" target="_blank" className="bg-emerald-500 text-white px-4 py-2 rounded-lg text-xs font-bold">WhatsApp</a>
+                <a href="https://wa.me/8801723684031" target="_blank" className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors">WhatsApp</a>
               </div>
             </div>
           </section>

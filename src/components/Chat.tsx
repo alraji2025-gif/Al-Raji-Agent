@@ -130,7 +130,7 @@ export default function Chat({ systemInstruction, onVoiceClick, onBack }: { syst
 
   const initialMessage: Message = { 
     role: 'model', 
-    text: 'আসসালামু আলাইকুম! আমি Al raji agent Nusrat। আল রাজী কম্পিউটার ট্রেনিং ইনস্টিটিউটে আপনাকে স্বাগতম। আপনার ক্যারিয়ার গড়ার যাত্রায় আমি কিভাবে সাহায্য করতে পারি?' 
+    text: 'আসসালামু আলাইকুম! আমি Al raji agent Nusrat। আল রাজী কম্পিউটার ট্রেনিং ইনস্টিটিউটে আপনাকে স্বাগতম। আজ আপনাকে কিভাবে সাহায্য করতে পারি?' 
   };
 
   // Load active session messages
@@ -223,7 +223,8 @@ export default function Chat({ systemInstruction, onVoiceClick, onBack }: { syst
     setIsLoading(true);
 
     try {
-      const stream = await getChatResponseStream(userMessage, messages, systemInstruction);
+      const currentHistory = messages || [];
+      const stream = await getChatResponseStream(userMessage, currentHistory, systemInstruction);
       
       let fullText = '';
       setMessages(prev => [...(prev || []), { role: 'model', text: '' } as Message]);
