@@ -178,6 +178,12 @@ export default function AdminPanel({ onLogout, onBack }: { onLogout: () => void,
 
   return (
     <div className="flex flex-col h-full bg-slate-50 rounded-2xl overflow-hidden border border-slate-200 shadow-2xl">
+      {/* Debug Info for Admin */}
+      <div className="bg-amber-50 border-b border-amber-100 px-4 py-1 text-[10px] text-amber-700 flex justify-between items-center">
+        <span>Auth Status: {adminUser ? `Logged in (${adminUser.email || 'Anonymous'})` : 'Not Authenticated with Firebase'}</span>
+        <span>UID: {adminUser?.uid || 'None'}</span>
+      </div>
+
       <div className="bg-slate-900 text-white p-6 flex justify-between items-center">
         <div className="flex items-center gap-4">
           {onBack && (
